@@ -6,7 +6,7 @@ from io import BytesIO
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import Atlas, AtlasEntry, Asset
-from storage import get_storage_backend
+from app.storage import get_storage_backend
 
 st.set_page_config(page_title="Export", page_icon="📦")
 st.title("📦 Export")

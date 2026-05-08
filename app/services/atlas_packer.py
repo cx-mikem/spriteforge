@@ -7,7 +7,7 @@ from PIL import Image
 from sqlalchemy.orm import Session
 from app.models import Asset, ProcessedAsset, Atlas, AtlasEntry
 from app.config import Config
-from storage import get_storage_backend
+from app.storage import get_storage_backend
 
 logger = logging.getLogger(__name__)
 
