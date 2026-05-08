@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import Asset, StyleAnchor
 
-st.set_page_config(page_title="Manifest", page_icon="📋")
-st.title("📋 Manifest")
+st.set_page_config(page_title="Create", page_icon="📋")
+st.title("📋 Create")
 st.markdown("Define assets and write generation prompts for each one.")
 
 db = SessionLocal()
