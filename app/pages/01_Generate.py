@@ -49,11 +49,14 @@ with tab1:
     }
     missing_anchors = [a for a in all_assets if a.asset_id not in anchored_ids]
     if missing_anchors:
-        st.info(
-            f"{len(missing_anchors)} asset(s) have no style anchor yet: "
+        st.error(
+            f"**{len(missing_anchors)} asset(s) have no generation prompt yet:** "
             + ", ".join(a.asset_id for a in missing_anchors)
-            + " — add prompts in **Settings → Style Anchors**."
+            + "\n\n"
+            "→ Go to **Manifest → Style Anchors** tab and write a prompt for each one before generating."
         )
+    if len(missing_anchors) == len(all_assets):
+        st.stop()
 
     col1, col2 = st.columns(2)
 
