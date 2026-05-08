@@ -1,0 +1,55 @@
+{
+  "game": "example_game",
+  "assets": [
+    {
+      "asset_id": "creep_01",
+      "category": "creep",
+      "display_name": "Basic Creep",
+      "description": "Standard enemy unit",
+      "sprite_width_px": 64,
+      "sprite_height_px": 64,
+      "animation_type": "loop",
+      "frame_count": 4
+    },
+    {
+      "asset_id": "creep_boss",
+      "category": "creep",
+      "display_name": "Boss Creep",
+      "description": "Tougher enemy variant",
+      "sprite_width_px": 128,
+      "sprite_height_px": 128,
+      "animation_type": "loop",
+      "frame_count": 6
+    },
+    {
+      "asset_id": "tower_wood",
+      "category": "structure",
+      "display_name": "Wooden Tower",
+      "description": "Basic defense structure",
+      "sprite_width_px": 96,
+      "sprite_height_px": 96,
+      "animation_type": "static",
+      "frame_count": 1
+    },
+    {
+      "asset_id": "tower_stone",
+      "category": "structure",
+      "display_name": "Stone Tower",
+      "description": "Upgraded defense structure",
+      "sprite_width_px": 96,
+      "sprite_height_px": 96,
+      "animation_type": "static",
+      "frame_count": 1
+    },
+    {
+      "asset_id": "coin",
+      "category": "prop",
+      "display_name": "Coin",
+      "description": "Collectible item",
+      "sprite_width_px": 32,
+      "sprite_height_px": 32,
+      "animation_type": "loop",
+      "frame_count": 4
+    }
+  ]
+}

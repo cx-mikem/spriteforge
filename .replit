@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "python-3.11"]
 
 [deployment]
 router = "application"
@@ -10,6 +10,26 @@ env = { "CI" = "true" }
 
 [workflows]
 runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "spriteforge"
+
+[[workflows.workflow]]
+name = "spriteforge"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "streamlit run app/main.py --server.port 5000 --server.address 0.0.0.0 --server.headless true"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -30,3 +50,12 @@ externalPort = 80
 [[ports]]
 localPort = 8082
 externalPort = 3000
+
+[nix]
+channel = "stable-25_05"
+packages = ["freetype", "lcms2", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zlib"]
+
+[userenv]
+
+[userenv.shared]
+STREAMLIT_EMAIL = ""
