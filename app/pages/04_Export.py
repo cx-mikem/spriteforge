@@ -23,7 +23,7 @@ with tab1:
     current_atlases = db.query(Atlas).filter(Atlas.is_current == True).all()
 
     if not current_atlases:
-        st.warning("No atlases created yet. Go to Gallery to create them.")
+        st.warning("No atlases created yet. Go to **Export → Pack Atlas** after approving assets in Review Assets.")
     else:
         col1, col2 = st.columns(2)
 
