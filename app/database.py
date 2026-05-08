@@ -26,4 +26,5 @@ def get_db() -> Session:
 
 def init_db():
     """Initialize database schema."""
+    from app.models import asset, atlas, cost, generation  # noqa: F401
     Base.metadata.create_all(bind=engine)
