@@ -16,15 +16,15 @@ class PostProcessService:
     def __init__(self):
         self.bg_removal_enabled = Config.BACKGROUND_REMOVAL_ENABLED
         self.sprite_format = Config.SPRITE_FORMAT
+        self.remove_bg = None
 
         if self.bg_removal_enabled:
             try:
                 from rembg import remove
                 self.remove_bg = remove
             except ImportError:
-                logger.warning("rembg not installed; background removal disabled")
+                logger.info("rembg not installed; install with: pip install rembg")
                 self.bg_removal_enabled = False
-                self.remove_bg = None
 
     def process(
         self,

@@ -4,7 +4,6 @@ import json
 import logging
 from pathlib import Path
 from PIL import Image
-from rectpack import newPacker
 from sqlalchemy.orm import Session
 from app.models import Asset, ProcessedAsset, Atlas, AtlasEntry
 from app.config import Config
@@ -72,33 +71,17 @@ class AtlasPacker:
             logger.error("No processed images could be loaded")
             return None
 
-        # Pack into sprite sheet
-        packer = newPacker(
-            mode="heuristic",
-            rotation=False,
-            width=self.max_width,
-            height=self.max_height,
-            pack_algo="shelf",
-        )
-
-        # Add images to packer
-        for asset_id, img in images.items():
-            width, height = img.size
-            packer.add_rect(width, height, rid=asset_id)
-
-        packer.pack()
-
-        # Create the sprite sheet
-        agg_rect = packer.rect_list()
-        if not agg_rect:
-            logger.error("Packing failed")
+        # Simple grid-based packing
+        positions = self._pack_grid(images, self.max_width, self.max_height)
+        if not positions:
+            logger.error("Packing failed - images too large for atlas")
             return None
 
-        # Find actual canvas size needed
-        max_x = max(rect[0] + rect[2] for rect in agg_rect) if agg_rect else self.max_width
-        max_y = max(rect[1] + rect[3] for rect in agg_rect) if agg_rect else self.max_height
-        actual_width = min(max_x, self.max_width)
-        actual_height = min(max_y, self.max_height)
+        # Calculate actual canvas size needed
+        actual_width = max(x + w for x, y, w, h in positions.values()) if positions else self.max_width
+        actual_height = max(y + h for x, y, w, h in positions.values()) if positions else self.max_height
+        actual_width = min(actual_width, self.max_width)
+        actual_height = min(actual_height, self.max_height)
 
         sprite_sheet = Image.new("RGBA", (actual_width, actual_height), (0, 0, 0, 0))
 
@@ -106,7 +89,7 @@ class AtlasPacker:
         frames = {}
         atlas_entries = []
 
-        for b, x, y, w, h, asset_id in agg_rect:
+        for asset_id, (x, y, w, h) in positions.items():
             img = images[asset_id]
             sprite_sheet.paste(img, (x, y), img)
 
@@ -213,3 +196,51 @@ class AtlasPacker:
             "manifest_json_path": remote_manifest_path,
             "version": version,
         }
+
+    def _pack_grid(self, images: dict, max_width: int, max_height: int) -> dict:
+        """
+        Simple grid-based bin packing.
+        Returns {asset_id: (x, y, w, h)} or empty dict if packing fails.
+        """
+        positions = {}
+        rows = []
+        current_row = []
+        current_y = 0
+        max_row_height = 0
+
+        sorted_images = sorted(images.items(), key=lambda x: x[1].height, reverse=True)
+
+        for asset_id, img in sorted_images:
+            width, height = img.size
+
+            # Try to fit in current row
+            current_x = sum(current_row[i][2] for i in range(len(current_row)))
+
+            if current_x + width > max_width and current_row:
+                # Start new row
+                rows.append(current_row)
+                current_row = []
+                current_y += max_row_height
+                max_row_height = 0
+                current_x = 0
+
+            if current_y + height > max_height:
+                # Cannot fit - packing failed
+                logger.warning("Image does not fit in atlas")
+                return {}
+
+            current_row.append((asset_id, current_x, width, height))
+            max_row_height = max(max_row_height, height)
+
+        if current_row:
+            rows.append(current_row)
+
+        # Convert rows to absolute positions
+        current_y = 0
+        for row in rows:
+            for asset_id, x, w, h in row:
+                positions[asset_id] = (x, current_y, w, h)
+            if row:
+                current_y += max(h for _, _, _, h in row)
+
+        return positions
