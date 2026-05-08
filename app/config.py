@@ -21,7 +21,7 @@ class Config:
     STORAGE_BACKEND: Literal["local", "s3", "replit"] = os.getenv(
         "STORAGE_BACKEND", "local"
     )
-    STORAGE_LOCAL_PATH = os.getenv("STORAGE_LOCAL_PATH", "/data/storage")
+    STORAGE_LOCAL_PATH = os.getenv("STORAGE_LOCAL_PATH", "/home/runner/workspace/data/storage")
 
     # S3
     S3_BUCKET = os.getenv("S3_BUCKET", "spriteforge-assets")
