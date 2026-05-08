@@ -11,7 +11,7 @@ st.markdown("Define assets and write generation prompts for each one.")
 
 db = SessionLocal()
 
-tab1, tab2, tab3 = st.tabs(["Assets", "Style Anchors", "Add Asset"])
+tab3, tab1, tab2 = st.tabs(["Create Asset", "All Assets", "Style Anchors"])
 
 with tab1:
     st.header("Asset Registry")
