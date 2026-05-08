@@ -31,8 +31,23 @@ def download_image(url: str, dest: Path) -> str:
 tab_create, tab_assets = st.tabs(["Create Asset", "All Assets"])
 
 with tab_create:
+    # Animation type lives OUTSIDE the form so changing it rerenders the page
+    # and shows/hides the frame count input reactively.
+    st.subheader("Asset Details")
+    col1, col2 = st.columns(2)
+    with col2:
+        animation_type = st.selectbox("Animation Type", ["static", "loop", "transition"])
+        frame_count = 1
+        if animation_type != "static":
+            frame_count = st.number_input(
+                "Frame Count",
+                min_value=2,
+                max_value=32,
+                value=4,
+                help="How many animation frames to request from the API",
+            )
+
     with st.form("create_asset_form"):
-        st.subheader("Asset Details")
         col1, col2 = st.columns(2)
         with col1:
             asset_id = st.text_input("Asset ID", placeholder="e.g. creep_01", help="Unique identifier")
@@ -41,11 +56,7 @@ with tab_create:
         with col2:
             sprite_width = st.number_input("Sprite Width (px)", min_value=16, max_value=512, value=64)
             sprite_height = st.number_input("Sprite Height (px)", min_value=16, max_value=512, value=64)
-            animation_type = st.selectbox("Animation Type", ["static", "loop", "transition"])
-
-        frame_count = 1
-        if animation_type != "static":
-            frame_count = st.number_input("Frame Count", min_value=2, max_value=32, value=4)
+            st.caption(f"Animation: **{animation_type}**" + (f" · {frame_count} frames" if animation_type != "static" else ""))
 
         st.divider()
         st.subheader("Generation Prompt")
