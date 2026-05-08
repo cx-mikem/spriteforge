@@ -1,0 +1,95 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, "claude/**" ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: spriteforge
+          POSTGRES_PASSWORD: spriteforge
+          POSTGRES_DB: spriteforge
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run tests
+      env:
+        DATABASE_URL: postgresql://spriteforge:spriteforge@localhost:5432/spriteforge
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'sk-test' }}
+      run: |
+        pytest tests/ -v --tb=short
+
+  docker-build:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: false
+        tags: spriteforge:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Check imports
+      run: |
+        python -m py_compile app/**/*.py tests/**/*.py
+
+    - name: Check for common issues
+      run: |
+        # Check for hardcoded secrets
+        if grep -r "sk-" app/ tests/ --include="*.py" 2>/dev/null | grep -v "sk-test"; then
+          echo "Potential secrets found"
+          exit 1
+        fi
+        # Check for TODO markers
+        grep -r "TODO\|FIXME\|HACK" app/ --include="*.py" | head -5 || true

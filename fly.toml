@@ -1,0 +1,54 @@
+# Fly.io deployment configuration for spriteforge
+# Deploy with: flyctl deploy
+
+app = "spriteforge"
+primary_region = "sjc"
+
+[env]
+  STREAMLIT_SERVER_HEADLESS = "true"
+  STREAMLIT_SERVER_PORT = "8080"
+  LOG_LEVEL = "INFO"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8501
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    path = "/_stcore/health"
+    timeout = "5s"
+    type = "http"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 1024
+
+# Mount persistent volume for storage
+[[mounts]]
+  source = "spriteforge_storage"
+  destination = "/data/storage"
+
+[[mounts]]
+  source = "spriteforge_db"
+  destination = "/var/lib/postgresql/data"
+
+# Database (optional: use external Postgres instead)
+# Set DATABASE_URL in secrets for cloud Postgres
+
+# Environment variables from Fly secrets:
+# - OPENAI_API_KEY: Your ChatGPT API key
+# - DATABASE_URL: PostgreSQL connection string (or use attached database)
+
+[env]
+  STORAGE_BACKEND = "local"
+  STORAGE_LOCAL_PATH = "/data/storage"
+  PORT = "8080"
