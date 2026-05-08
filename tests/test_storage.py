@@ -28,7 +28,7 @@ def test_local_backend_save(local_backend, temp_storage_dir):
     try:
         result = local_backend.save(temp_file, "test_dir/test_file.txt")
         assert result == "test_dir/test_file.txt"
-        assert Path(temp_storage_dir) / "test_dir" / "test_file.txt" exists()
+        assert (Path(temp_storage_dir) / "test_dir" / "test_file.txt").exists()
     finally:
         temp_file.unlink()
 

@@ -25,9 +25,9 @@ class Asset(Base):
     deleted_at = Column(DateTime, nullable=True)
 
     # Relationships
-    style_anchors = relationship("StyleAnchor", back_populates="asset")
-    generations = relationship("Generation", back_populates="asset")
-    processed_assets = relationship("ProcessedAsset", back_populates="asset")
+    style_anchors = relationship("StyleAnchor", foreign_keys="[StyleAnchor.asset_id]", back_populates="asset", primaryjoin="Asset.asset_id==StyleAnchor.asset_id")
+    generations = relationship("Generation", foreign_keys="[Generation.asset_id]", back_populates="asset", primaryjoin="Asset.asset_id==Generation.asset_id")
+    processed_assets = relationship("ProcessedAsset", foreign_keys="[ProcessedAsset.asset_id]", back_populates="asset", primaryjoin="Asset.asset_id==ProcessedAsset.asset_id")
 
     __table_args__ = (
         Index("idx_asset_category", "category"),
@@ -59,7 +59,7 @@ class StyleAnchor(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    asset = relationship("Asset", back_populates="style_anchors")
+    asset = relationship("Asset", foreign_keys="[StyleAnchor.asset_id]", back_populates="style_anchors", primaryjoin="Asset.asset_id==StyleAnchor.asset_id")
     generations = relationship("Generation", back_populates="anchor")
 
     __table_args__ = (

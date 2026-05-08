@@ -32,7 +32,7 @@ class Generation(Base):
     last_error = Column(Text, nullable=True)
 
     # Relationships
-    asset = relationship("Asset", back_populates="generations")
+    asset = relationship("Asset", foreign_keys="[Generation.asset_id]", back_populates="generations", primaryjoin="Asset.asset_id==Generation.asset_id")
     anchor = relationship("StyleAnchor", back_populates="generations")
     approval = relationship("Approval", uselist=False, back_populates="generation")
     processed_asset = relationship("ProcessedAsset", uselist=False, back_populates="generation")
@@ -63,7 +63,7 @@ class Approval(Base):
 
     # Relationships
     generation = relationship("Generation", back_populates="approval")
-    asset = relationship("Asset")
+    asset = relationship("Asset", foreign_keys="[Approval.asset_id]", primaryjoin="Asset.asset_id==Approval.asset_id")
 
     __table_args__ = (
         Index("idx_approval_asset", "asset_id"),
@@ -95,7 +95,7 @@ class ProcessedAsset(Base):
 
     # Relationships
     generation = relationship("Generation", back_populates="processed_asset")
-    asset = relationship("Asset", back_populates="processed_assets")
+    asset = relationship("Asset", foreign_keys="[ProcessedAsset.asset_id]", back_populates="processed_assets", primaryjoin="Asset.asset_id==ProcessedAsset.asset_id")
 
     __table_args__ = (
         Index("idx_processed_asset", "asset_id"),

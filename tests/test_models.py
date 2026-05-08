@@ -57,9 +57,10 @@ def test_style_anchor_locking(test_db, sample_anchor):
 
 def test_generation_creation(test_db, sample_generation):
     """Test creating a generation."""
+    from decimal import Decimal
     assert sample_generation.status == "pending"
     assert sample_generation.image_count == 1
-    assert sample_generation.api_cost_usd == 0.04
+    assert sample_generation.api_cost_usd == Decimal("0.04")
 
 
 def test_generation_status_transition(test_db, sample_generation):
@@ -102,5 +103,6 @@ def test_asset_relationships(test_db, sample_asset, sample_anchor, sample_genera
     assert sample_asset.style_anchors[0].anchor_id == "test_creep_v1"
 
     # Asset → Generations
+    from decimal import Decimal
     assert len(sample_asset.generations) == 1
-    assert sample_asset.generations[0].api_cost_usd == 0.04
+    assert sample_asset.generations[0].api_cost_usd == Decimal("0.04")

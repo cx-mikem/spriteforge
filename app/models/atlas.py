@@ -52,7 +52,7 @@ class AtlasEntry(Base):
 
     # Relationships
     atlas = relationship("Atlas", back_populates="entries")
-    asset = relationship("Asset")
+    asset = relationship("Asset", foreign_keys="[AtlasEntry.asset_id]", primaryjoin="Asset.asset_id==AtlasEntry.asset_id")
 
     __table_args__ = (
         Index("idx_atlas_entry_atlas_asset", "atlas_id", "asset_id"),
