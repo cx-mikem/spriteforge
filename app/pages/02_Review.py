@@ -2,6 +2,7 @@
 
 import streamlit as st
 from datetime import datetime
+from pathlib import Path
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models import Asset, Generation, Approval, ProcessedAsset
@@ -16,6 +17,18 @@ db = SessionLocal()
 
 tab1, tab2 = st.tabs(["Pending Review", "Approval History"])
 
+
+def load_image(path_or_url: str):
+    """Return a Streamlit-compatible image source (PIL for local paths, URL as-is)."""
+    if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
+        return path_or_url
+    p = Path(path_or_url)
+    if p.exists():
+        from PIL import Image
+        return Image.open(p)
+    return None
+
+
 with tab1:
     st.header("Pending Generations")
 
@@ -27,19 +40,29 @@ with tab1:
     )
 
     if not pending:
-        st.info("✓ All caught up! No pending generations to review.")
+        total_gens = db.query(Generation).count()
+        if total_gens == 0:
+            st.info(
+                "No generations yet. Complete these steps first:\n\n"
+                "1. **Settings** → Style Anchors — write a prompt for each asset\n"
+                "2. **Generate** → Trigger — run generation\n"
+                "3. Come back here to review the results"
+            )
+        else:
+            st.success("✓ All caught up! No pending generations to review.")
     else:
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Waiting Review", len(pending))
 
-        selected_gen_id = st.selectbox(
+        selected_gen = st.selectbox(
             "Select Generation",
             pending,
-            format_func=lambda g: f"{g.asset_id} • {len(g.image_paths)} images • {g.created_at.strftime('%H:%M')}",
+            format_func=lambda g: (
+                f"{g.asset_id} • {len(g.image_paths or [])} images • "
+                f"{g.created_at.strftime('%b %d %H:%M')}"
+            ),
         )
-
-        selected_gen = selected_gen_id
 
         if selected_gen:
             asset = (
@@ -54,7 +77,7 @@ with tab1:
             with col3:
                 st.write(f"**Sprites:** {selected_gen.image_count}")
             with col4:
-                st.write(f"**Cost:** ${float(selected_gen.api_cost_usd):.4f}")
+                st.write(f"**Cost:** ${float(selected_gen.api_cost_usd or 0):.4f}")
 
             st.divider()
 
@@ -62,19 +85,19 @@ with tab1:
 
             with col1:
                 st.subheader("Candidate Images")
-                for idx, image_url in enumerate(selected_gen.image_paths):
+                image_paths = selected_gen.image_paths or []
+                for idx, image_ref in enumerate(image_paths):
                     st.write(f"**Variant {idx + 1}**")
-                    try:
-                        st.image(image_url, use_container_width=True, caption=image_url[:40] + "...")
-                    except Exception as e:
-                        st.error(f"Could not load image: {e}")
+                    img = load_image(image_ref)
+                    if img is None:
+                        st.warning(f"Image not found: {image_ref}")
+                    else:
+                        label = Path(image_ref).name if not image_ref.startswith("http") else image_ref[:40] + "..."
+                        st.image(img, use_container_width=True, caption=label)
 
             with col2:
                 st.subheader("Actions")
 
-                st.write("**Choose action:**")
-
-                # Check if previous approved version exists
                 prev_approved = (
                     db.query(Generation)
                     .filter(
@@ -89,7 +112,6 @@ with tab1:
                 if prev_approved:
                     st.info(f"Previous approved: {prev_approved.created_at.strftime('%Y-%m-%d %H:%M')}")
 
-                # Approval decision
                 action = st.radio(
                     "Decision",
                     [
@@ -104,16 +126,16 @@ with tab1:
                 notes = st.text_area("Notes (optional)", placeholder="Why did you approve/reject?")
 
                 if action == "approve":
+                    image_paths = selected_gen.image_paths or []
                     variant_idx = st.number_input(
                         "Which variant?",
                         min_value=0,
-                        max_value=len(selected_gen.image_paths) - 1,
+                        max_value=max(len(image_paths) - 1, 0),
                         value=0,
                     )
 
                     if st.button("✓ Approve", type="primary", use_container_width=True):
                         try:
-                            # Create approval
                             approval = Approval(
                                 generation_id=selected_gen.id,
                                 asset_id=selected_gen.asset_id,
@@ -123,55 +145,50 @@ with tab1:
                             )
                             db.add(approval)
 
-                            # Mark generation as approved
                             selected_gen.status = "approved"
                             selected_gen.approved_at = datetime.utcnow()
                             selected_gen.approved_by = "user"
 
                             db.commit()
 
-                            st.success(
-                                f"✓ Approved! Image will be processed in next step."
-                            )
+                            st.success("✓ Approved! Now you can process and pack this asset.")
                             st.balloons()
 
-                            # Offer to process immediately
-                            if st.button("Process Now"):
+                            # Offer immediate post-processing
+                            if image_paths and st.button("Process Now →"):
                                 try:
                                     service = PostProcessService()
-                                    image_url = selected_gen.image_paths[variant_idx]
+                                    image_ref = image_paths[variant_idx]
+
+                                    output_dir = (
+                                        Path(Config.STORAGE_LOCAL_PATH)
+                                        / "processed"
+                                        / selected_gen.asset_id
+                                    )
+                                    output_dir.mkdir(parents=True, exist_ok=True)
+                                    output_path = output_dir / f"{selected_gen.id}.png"
 
                                     with st.spinner("Processing image..."):
                                         result = service.process(
-                                            image_url=image_url,
+                                            image_url=image_ref,
                                             sprite_width=asset.sprite_width_px,
                                             sprite_height=asset.sprite_height_px,
-                                            output_path=st.session_state.get(
-                                                "temp_dir", "/tmp"
-                                            ),
+                                            output_path=output_path,
                                         )
 
                                         processed = ProcessedAsset(
                                             generation_id=selected_gen.id,
                                             asset_id=selected_gen.asset_id,
-                                            processed_image_path=result[
-                                                "processed_image_path"
-                                            ],
+                                            processed_image_path=result["processed_image_path"],
                                             bounding_box_x=result["bounding_box"]["x"],
                                             bounding_box_y=result["bounding_box"]["y"],
-                                            bounding_box_width=result["bounding_box"][
-                                                "width"
-                                            ],
-                                            bounding_box_height=result["bounding_box"][
-                                                "height"
-                                            ],
+                                            bounding_box_width=result["bounding_box"]["width"],
+                                            bounding_box_height=result["bounding_box"]["height"],
                                         )
                                         db.add(processed)
                                         db.commit()
 
-                                        st.success(
-                                            "✓ Processed! Ready for atlas packing."
-                                        )
+                                        st.success("✓ Processed! Ready for atlas packing in Gallery.")
 
                                 except Exception as e:
                                     st.error(f"Processing failed: {e}")
@@ -192,7 +209,7 @@ with tab1:
                             selected_gen.last_error = reject_reason or notes
                             db.commit()
 
-                            st.warning("✗ Rejected. This generation will not be used.")
+                            st.warning("✗ Rejected. Go to Generate to try again.")
                             st.rerun()
 
                         except Exception as e:
@@ -203,19 +220,16 @@ with tab1:
                         "New seed (for variation)",
                         min_value=0,
                         max_value=2147483647,
-                        value=None,
+                        value=0,
                     )
 
                     if st.button("🔄 Regenerate", use_container_width=True):
-                        st.info(
-                            "Mark as rejected and regenerate with new seed from Generate tab"
-                        )
                         selected_gen.status = "rejected"
                         selected_gen.rejected_at = datetime.utcnow()
                         selected_gen.rejected_by = "user"
                         selected_gen.last_error = f"Regenerate with seed {new_seed}"
                         db.commit()
-                        st.warning("✓ Marked for regeneration. Go to Generate tab.")
+                        st.warning("✓ Marked for regeneration. Go to Generate.")
                         st.rerun()
 
 with tab2:
@@ -240,22 +254,31 @@ with tab2:
         st.divider()
 
         for approval in approvals:
-            asset = (
-                db.query(Asset).filter(Asset.asset_id == approval.asset_id).first()
-            )
+            asset = db.query(Asset).filter(Asset.asset_id == approval.asset_id).first()
             gen = db.query(Generation).filter(Generation.id == approval.generation_id).first()
+            if not gen:
+                continue
+
+            image_paths = gen.image_paths or []
+            chosen_idx = approval.chosen_image_index or 0
 
             with st.expander(
                 f"{approval.asset_id} • {approval.approved_at.strftime('%Y-%m-%d %H:%M')} • "
-                f"${float(gen.api_cost_usd):.4f}"
+                f"${float(gen.api_cost_usd or 0):.4f}"
             ):
-                col1, col2 = st.columns(2)
+                col1, col2 = st.columns([1, 2])
                 with col1:
-                    st.write(f"**Category:** {asset.category}")
-                    st.write(f"**Variant:** {approval.chosen_image_index + 1}/{gen.image_count}")
-                with col2:
+                    st.write(f"**Category:** {asset.category if asset else '—'}")
+                    st.write(f"**Variant:** {chosen_idx + 1}/{gen.image_count}")
                     st.write(f"**Approved by:** {approval.approved_by}")
                     if approval.notes:
                         st.write(f"**Notes:** {approval.notes}")
+                with col2:
+                    if image_paths and chosen_idx < len(image_paths):
+                        img = load_image(image_paths[chosen_idx])
+                        if img:
+                            st.image(img, use_container_width=True, caption="Approved variant")
+                        else:
+                            st.warning("Image file not found.")
 
 db.close()
